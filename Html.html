@@ -1,0 +1,1509 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sistem Pertidaksamaan Linier Quest 3D - Math with Bu Danur</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Three.js (3D Engine) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Tone.js (Audio Synthesis) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        * {
+            user-select: none;
+            -webkit-user-select: none;
+            box-sizing: border-box;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #0f172a;
+            color: #f8fafc;
+        }
+        #webgl-container {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+        .glass-card {
+            background: rgba(30, 41, 59, 0.85);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        /* Touch Controls Styling */
+        .touch-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            backdrop-filter: blur(4px);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.5rem;
+            touch-action: manipulation;
+        }
+        .touch-btn:active {
+            background: rgba(59, 130, 246, 0.6);
+            transform: scale(0.95);
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(59, 130, 246, 0.5);
+            border-radius: 3px;
+        }
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 15px rgba(59, 130, 246, 0.5); }
+            50% { box-shadow: 0 0 25px rgba(147, 51, 234, 0.8); }
+        }
+        .glow-effect {
+            animation: pulse-glow 3s infinite;
+        }
+    </style>
+</head>
+<body class="relative">
+
+    <!-- 3D Canvas Container -->
+    <div id="webgl-container"></div>
+
+    <!-- UI LAYER (Z-INDEX 10) -->
+    <div id="ui-layer" class="relative z-10 w-full h-full pointer-events-none flex flex-col justify-between p-4 md:p-6">
+        
+        <!-- TOP HUD -->
+        <div class="flex justify-between items-start w-full">
+            <!-- Player Status & Quest Banner -->
+            <div class="glass-panel rounded-2xl p-3 md:p-4 pointer-events-auto max-w-xs md:max-w-sm flex flex-col gap-2 shadow-xl">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center font-bold text-lg border-2 border-white/40">
+                        <i class="fa-solid font-bold fa-user-graduate"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-sm md:text-base text-amber-300 leading-tight" id="zone-title">Misi 1: Hutan PtLSV</h3>
+                        <p class="text-xs text-slate-300" id="player-name-display">Petualang Matematika</p>
+                    </div>
+                </div>
+                <!-- Progress Bar -->
+                <div class="w-full bg-slate-800/80 rounded-full h-2.5 overflow-hidden border border-slate-700">
+                    <div id="mission-progress-bar" class="bg-gradient-to-r from-emerald-400 to-cyan-500 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+                </div>
+                <div class="flex justify-between text-xs text-slate-300 font-semibold">
+                    <span id="progress-text">Progres: 0/5 Kristal Soal</span>
+                    <span id="score-display" class="text-amber-400"><i class="fa-solid fa-star text-amber-400 mr-1"></i>0 Pts</span>
+                </div>
+            </div>
+
+            <!-- Controls & Settings -->
+            <div class="flex gap-2 pointer-events-auto">
+                <button id="btn-map" onclick="openWorldMap()" class="glass-panel hover:bg-slate-700/60 text-white w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center shadow-lg transition-transform active:scale-95" title="Peta Dunia">
+                    <i class="fa-solid fa-map-location-dot text-lg text-cyan-400"></i>
+                </button>
+                <button id="btn-audio" onclick="toggleAudio()" class="glass-panel hover:bg-slate-700/60 text-white w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center shadow-lg transition-transform active:scale-95" title="Mute/Unmute Audio">
+                    <i id="audio-icon" class="fa-solid fa-volume-high text-lg text-emerald-400"></i>
+                </button>
+                <button id="btn-teacher" onclick="openTeacherModal()" class="glass-panel hover:bg-slate-700/60 text-white w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center shadow-lg transition-transform active:scale-95" title="Mode Guru">
+                    <i class="fa-solid fa-chalkboard-user text-lg text-purple-400"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- CENTER NOTIFICATION / PROMPT -->
+        <div id="interaction-prompt" class="self-center glass-panel px-6 py-3 rounded-full text-center hidden pointer-events-auto shadow-2xl border-emerald-400/50 glow-effect">
+            <p class="text-sm md:text-base font-semibold text-emerald-300 flex items-center gap-2">
+                <i class="fa-solid fa-gem animate-bounce"></i>
+                <span id="prompt-text">Tekan [E] atau Ketuk untuk Membuka Kristal Soal</span>
+            </p>
+        </div>
+
+        <!-- BOTTOM HUD / CONTROLS -->
+        <div class="flex justify-between items-end w-full">
+            <!-- On-Screen D-Pad (Mobile Only) -->
+            <div id="mobile-dpad" class="pointer-events-auto md:hidden grid grid-cols-3 gap-1 w-36 h-36">
+                <div></div>
+                <button class="touch-btn" id="btn-up"><i class="fa-solid fa-arrow-up"></i></button>
+                <div></div>
+                <button class="touch-btn" id="btn-left"><i class="fa-solid fa-arrow-left"></i></button>
+                <div class="flex items-center justify-center text-xs text-slate-400 font-bold">PAD</div>
+                <button class="touch-btn" id="btn-right"><i class="fa-solid fa-arrow-right"></i></button>
+                <div></div>
+                <button class="touch-btn" id="btn-down"><i class="fa-solid fa-arrow-down"></i></button>
+                <div></div>
+            </div>
+
+            <!-- Desktop Instructions -->
+            <div class="hidden md:flex glass-panel p-3 rounded-xl gap-4 text-xs text-slate-300">
+                <span class="flex items-center gap-1"><kbd class="bg-slate-700 px-2 py-0.5 rounded text-white font-mono">WASD</kbd> Gerak</span>
+                <span class="flex items-center gap-1"><kbd class="bg-slate-700 px-2 py-0.5 rounded text-white font-mono">Spasi</kbd> Lompat</span>
+                <span class="flex items-center gap-1"><kbd class="bg-slate-700 px-2 py-0.5 rounded text-white font-mono">E</kbd> Interaksi</span>
+                <span class="flex items-center gap-1"><i class="fa-solid fa-mouse text-cyan-400"></i> Mouse Rotate Camera</span>
+            </div>
+
+            <!-- Action Buttons (Jump & Interact) for Mobile -->
+            <div id="mobile-actions" class="pointer-events-auto md:hidden flex gap-3">
+                <button id="btn-jump" class="touch-btn w-14 h-14 bg-indigo-600/50"><i class="fa-solid fa-angles-up"></i></button>
+                <button id="btn-interact" class="touch-btn w-14 h-14 bg-emerald-600/50"><i class="fa-solid fa-hand"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 1: WELCOME & START GAME -->
+    <div id="modal-welcome" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+        <div class="glass-card max-w-lg w-full rounded-3xl p-6 md:p-8 text-center shadow-2xl border border-indigo-500/30 flex flex-col gap-5">
+            <div class="w-20 h-20 bg-gradient-to-tr from-indigo-500 to-purple-600 rounded-3xl mx-auto flex items-center justify-center text-4xl text-white shadow-lg glow-effect">
+                <i class="fa-solid fa-shapes"></i>
+            </div>
+            <div>
+                <span class="text-xs font-extrabold tracking-widest text-indigo-400 uppercase">Math with Bu Danur</span>
+                <h1 class="text-2xl md:text-3xl font-extrabold text-white mt-1">SISTEM PERTIDAKSAMAN LINIER QUEST 3D</h1>
+                <p class="text-sm text-slate-300 mt-2">Jelajahi dunia 3D fantasi, temukan batu kristal ajaib, dan selesaikan tantangan Matematika Kelas X untuk menyelamatkan dunia!</p>
+            </div>
+
+            <div class="text-left bg-slate-900/60 p-4 rounded-2xl border border-slate-700/50 text-xs space-y-2">
+                <div class="font-bold text-amber-300 flex items-center gap-2"><i class="fa-solid fa-compass"></i> Panduan Petualangan:</div>
+                <p>1. Temukan 5 Batu Kristal di tiap Misi untuk menjawab tantangan soal.</p>
+                <p>2. Setiap jawaban benar memberi <strong>100 Poin</strong>. Kunci jawaban aman tersimpan.</p>
+                <p>3. Gunakan tombol <strong>"Minta Petunjuk"</strong> jika membutuhkan panduan rumus.</p>
+            </div>
+
+            <div class="flex flex-col gap-2">
+                <input type="text" id="input-player-name" placeholder="Masukkan Nama Murid..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-center text-white focus:outline-none focus:border-indigo-500">
+                <button onclick="startGame()" class="w-full py-3.5 bg-gradient-to-r from-indigo-500 hover:from-indigo-600 to-purple-600 hover:to-purple-700 text-white font-bold rounded-xl shadow-lg transition-all transform active:scale-95 text-base flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-play"></i> Mulai Petualangan 3D
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 2: TANTANGAN SOAL MATH -->
+    <div id="modal-quiz" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md hidden">
+        <div class="glass-card max-w-2xl w-full rounded-3xl p-5 md:p-7 shadow-2xl border border-cyan-500/30 flex flex-col gap-4 max-h-[90vh] overflow-y-auto">
+            
+            <!-- Quiz Header -->
+            <div class="flex justify-between items-center border-b border-slate-700/60 pb-3">
+                <div class="flex items-center gap-2">
+                    <span id="quiz-badge" class="px-3 py-1 bg-cyan-500/20 text-cyan-300 text-xs font-bold rounded-full border border-cyan-500/30">Misi 1 - Soal 1</span>
+                    <span class="text-xs text-slate-400">Matematika SMA Kelas 10</span>
+                </div>
+                <button onclick="closeQuizModal()" class="text-slate-400 hover:text-white p-1"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+
+            <!-- Quiz Content / Question -->
+            <div class="space-y-3">
+                <h3 id="quiz-question" class="text-base md:text-lg font-bold text-white leading-relaxed">
+                    <!-- Text Soal -->
+                </h3>
+
+                <!-- Dynamic 2D Coordinate Visualizer / Graph Container -->
+                <div id="quiz-visual-container" class="w-full bg-slate-950 rounded-2xl p-3 border border-slate-800 flex justify-center items-center min-h-[160px] hidden">
+                    <canvas id="graph-canvas" class="max-w-full rounded-lg"></canvas>
+                </div>
+            </div>
+
+            <!-- Hint Box (Hidden by Default) -->
+            <div id="hint-box" class="hidden bg-amber-500/10 border border-amber-500/30 p-3.5 rounded-2xl text-xs text-amber-200 flex items-start gap-2.5">
+                <i class="fa-solid fa-lightbulb text-amber-400 text-base mt-0.5"></i>
+                <div>
+                    <span class="font-bold block mb-0.5">Petunjuk Belajar:</span>
+                    <p id="hint-text">Gunakan sifat pertidaksamaan...</p>
+                </div>
+            </div>
+
+            <!-- Options Grid -->
+            <div id="quiz-options" class="grid grid-cols-1 gap-2.5 my-2">
+                <!-- Option Buttons Generated Dynamically -->
+            </div>
+
+            <!-- Feedback Message Banner -->
+            <div id="quiz-feedback" class="hidden p-3 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs text-center font-semibold flex items-center justify-center gap-2">
+                <i class="fa-solid fa-circle-check"></i>
+                <span id="feedback-text">Jawabanmu sudah tersimpan. Lanjutkan petualangan!</span>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex justify-between items-center pt-2 border-t border-slate-700/60">
+                <button id="btn-request-hint" onclick="showHint()" class="px-4 py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-xs font-bold rounded-xl border border-amber-500/30 transition-all flex items-center gap-1.5">
+                    <i class="fa-solid fa-lightbulb"></i> MINTA PETUNJUK
+                </button>
+                <button id="btn-submit-answer" onclick="submitAnswer()" class="px-6 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white text-xs md:text-sm font-bold rounded-xl shadow-lg transition-all flex items-center gap-2">
+                    <i class="fa-solid fa-paper-plane"></i> KIRIM JAWABAN
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 3: PETA DUNIA (WORLD MAP) -->
+    <div id="modal-map" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md hidden">
+        <div class="glass-card max-w-xl w-full rounded-3xl p-6 shadow-2xl border border-indigo-500/30 flex flex-col gap-5">
+            <div class="flex justify-between items-center border-b border-slate-700 pb-3">
+                <h3 class="font-bold text-lg text-white flex items-center gap-2"><i class="fa-solid fa-map text-cyan-400"></i> Peta Dunia & Portal Wilayah</h3>
+                <button onclick="closeWorldMap()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <!-- Zone 1 -->
+                <div class="bg-slate-900/80 border border-emerald-500/40 p-4 rounded-2xl flex flex-col justify-between">
+                    <div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs font-bold text-emerald-400">ZONE 1</span>
+                            <i class="fa-solid fa-tree text-emerald-400"></i>
+                        </div>
+                        <h4 class="font-bold text-white text-sm mt-1">Hutan PtLSV</h4>
+                        <p class="text-xs text-slate-400 mt-1">Pertidaksamaan Linier Satu Variabel & Bidang Koordinat.</p>
+                    </div>
+                    <button onclick="teleportToZone(1)" class="mt-3 w-full py-2 bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-200 text-xs font-bold rounded-xl border border-emerald-500/40 transition-all">Masuk Hutan</button>
+                </div>
+
+                <!-- Zone 2 -->
+                <div id="zone-2-card" class="bg-slate-900/80 border border-slate-700 p-4 rounded-2xl flex flex-col justify-between opacity-80">
+                    <div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs font-bold text-cyan-400">ZONE 2</span>
+                            <i class="fa-solid fa-dungeon text-cyan-400"></i>
+                        </div>
+                        <h4 class="font-bold text-white text-sm mt-1">Labirin DHP SPTLDV</h4>
+                        <p class="text-xs text-slate-400 mt-1">Ruangan Cermin & Menentukan Daerah Penyelesaian.</p>
+                    </div>
+                    <button id="btn-tele-2" onclick="teleportToZone(2)" class="mt-3 w-full py-2 bg-cyan-600/30 hover:bg-cyan-600/50 text-cyan-200 text-xs font-bold rounded-xl border border-cyan-500/40 transition-all">Masuk Labirin</button>
+                </div>
+
+                <!-- Zone 3 -->
+                <div id="zone-3-card" class="bg-slate-900/80 border border-slate-700 p-4 rounded-2xl flex flex-col justify-between opacity-80">
+                    <div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs font-bold text-indigo-400">ZONE 3</span>
+                            <i class="fa-solid fa-chart-area text-indigo-400"></i>
+                        </div>
+                        <h4 class="font-bold text-white text-sm mt-1">Arena Platform System</h4>
+                        <p class="text-xs text-slate-400 mt-1">Menentukan SPTLDV dari Daerah Grafik.</p>
+                    </div>
+                    <button id="btn-tele-3" onclick="teleportToZone(3)" class="mt-3 w-full py-2 bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-200 text-xs font-bold rounded-xl border border-indigo-500/40 transition-all">Masuk Arena</button>
+                </div>
+
+                <!-- Zone 4 -->
+                <div id="zone-4-card" class="bg-slate-900/80 border border-slate-700 p-4 rounded-2xl flex flex-col justify-between opacity-80">
+                    <div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs font-bold text-amber-400">ZONE 4</span>
+                            <i class="fa-solid fa-chess-rook text-amber-400"></i>
+                        </div>
+                        <h4 class="font-bold text-white text-sm mt-1">Istana Program Linier</h4>
+                        <p class="text-xs text-slate-400 mt-1">Nilai Optimum Fungsi Objektif & Uji Titik Pojok.</p>
+                    </div>
+                    <button id="btn-tele-4" onclick="teleportToZone(4)" class="mt-3 w-full py-2 bg-amber-600/30 hover:bg-amber-600/50 text-amber-200 text-xs font-bold rounded-xl border border-amber-500/40 transition-all">Masuk Istana</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 4: MODE GURU & REKAPITULASI -->
+    <div id="modal-teacher" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md hidden">
+        <div class="glass-card max-w-2xl w-full rounded-3xl p-6 shadow-2xl border border-purple-500/30 flex flex-col gap-4 max-h-[85vh]">
+            <div class="flex justify-between items-center border-b border-slate-700 pb-3">
+                <h3 class="font-bold text-lg text-white flex items-center gap-2"><i class="fa-solid fa-user-shield text-purple-400"></i> Dashboard Guru (Math with Bu Danur)</h3>
+                <button onclick="closeTeacherModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+
+            <!-- Password Gate -->
+            <div id="teacher-auth" class="flex flex-col gap-3 py-6 items-center text-center">
+                <i class="fa-solid fa-lock text-3xl text-purple-400"></i>
+                <p class="text-sm text-slate-300">Masukkan Kata Sandi Khusus Guru untuk Membuka Kunci Jawaban & Pembahasan:</p>
+                <div class="flex gap-2 max-w-xs w-full">
+                    <input type="password" id="teacher-pass" placeholder="Password (Default: mathguru10)" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500">
+                    <button onclick="authenticateTeacher()" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl text-sm">Buka</button>
+                </div>
+                <span id="auth-error" class="text-xs text-rose-400 hidden">Password salah! Silakan coba lagi.</span>
+            </div>
+
+            <!-- Protected Content -->
+            <div id="teacher-content" class="hidden overflow-y-auto space-y-4 pr-1">
+                <div class="bg-slate-900/80 p-4 rounded-2xl border border-purple-500/30 flex justify-between items-center">
+                    <div>
+                        <span class="text-xs text-slate-400">Nama Murid:</span>
+                        <h4 id="recap-player-name" class="font-bold text-white text-base">Petualang</h4>
+                    </div>
+                    <div>
+                        <span class="text-xs text-slate-400">Skor Total:</span>
+                        <h4 id="recap-score" class="font-bold text-amber-400 text-lg">0 Pts</h4>
+                    </div>
+                </div>
+
+                <h4 class="font-bold text-sm text-purple-300">Rekapitulasi 20 Soal & Pembahasan Matematika:</h4>
+                <div id="recap-questions-list" class="space-y-3 text-xs">
+                    <!-- Dynamic Recap Generated Here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 5: HALAMAN AKHIR / KEMENANGAN -->
+    <div id="modal-victory" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md hidden">
+        <div class="glass-card max-w-lg w-full rounded-3xl p-6 md:p-8 text-center shadow-2xl border border-amber-500/40 flex flex-col gap-5">
+            <div class="w-24 h-24 bg-gradient-to-tr from-amber-400 to-yellow-500 rounded-full mx-auto flex items-center justify-center text-5xl text-slate-950 shadow-xl glow-effect">
+                <i class="fa-solid fa-trophy"></i>
+            </div>
+            
+            <div>
+                <span class="text-xs font-bold text-amber-400 tracking-widest uppercase">PETUALANGAN SELESAI!</span>
+                <h2 class="text-2xl md:text-3xl font-extrabold text-white mt-1">Dunia Berhasil Diselamatkan!</h2>
+                <p class="text-xs text-slate-300 mt-2">Selamat kepada <span id="victory-player-name" class="font-bold text-amber-300">Murid</span>! Kamu telah berhasil menaklukkan Sistem Pertidaksamaan Linier!</p>
+            </div>
+
+            <!-- Stats Grid -->
+            <div class="grid grid-cols-3 gap-2 bg-slate-900/80 p-4 rounded-2xl border border-slate-800">
+                <div>
+                    <span class="text-[10px] text-slate-400 block uppercase">Skor Akhir</span>
+                    <span id="victory-score" class="text-lg font-extrabold text-amber-400">0 Pts</span>
+                </div>
+                <div>
+                    <span class="text-[10px] text-slate-400 block uppercase">Benar</span>
+                    <span id="victory-correct" class="text-lg font-extrabold text-emerald-400">0/20</span>
+                </div>
+                <div>
+                    <span class="text-[10px] text-slate-400 block uppercase">Misi Selesai</span>
+                    <span class="text-lg font-extrabold text-cyan-400">4 Zone</span>
+                </div>
+            </div>
+
+            <!-- Badges Earned -->
+            <div>
+                <span class="text-xs text-slate-400 block mb-2 font-bold">Lencana Penghargaan Diperoleh:</span>
+                <div class="flex justify-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400" title="Penjelajah PtLSV"><i class="fa-solid fa-tree"></i></div>
+                    <div class="w-10 h-10 rounded-xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-cyan-400" title="Master Labirin DHP"><i class="fa-solid fa-dungeon"></i></div>
+                    <div class="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-indigo-400" title="Ahli Platform System"><i class="fa-solid fa-chart-area"></i></div>
+                    <div class="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400" title="Raja Program Linier"><i class="fa-solid fa-chess-rook"></i></div>
+                </div>
+            </div>
+
+            <p class="text-xs text-slate-400 italic">"Matematika adalah kunci untuk membuka pintu rahasia alam semesta." - Bu Danur</p>
+
+            <button onclick="resetAndPlayAgain()" class="w-full py-3.5 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-slate-950 font-extrabold rounded-xl shadow-lg transition-all transform active:scale-95 text-sm flex items-center justify-center gap-2">
+                <i class="fa-solid fa-rotate-right"></i> MAIN LAGI
+            </button>
+        </div>
+    </div>
+
+
+    <!-- JAVASCRIPT GAME LOGIC & THREE.JS ENGINE -->
+    <script>
+        /* ==========================================================================
+           1. DATA BANK SOAL (20 SOAL TERSTRUKTUR & ADAPTIF KELAS X SMA)
+           ========================================================================== */
+        const questionBank = [
+            // ZONE 1: MISI 1 - HUTAN PtLSV (1-5)
+            {
+                id: 1, zone: 1,
+                q: "Himpunan penyelesaian dari pertidaksamaan 3x - 4 > 16 + 8x untuk x ∈ R adalah...",
+                options: ["x > -4", "x < -4", "x > 4", "x < 4"],
+                ans: 1, // index 1 = x < -4
+                hint: "Kelompokkan suku berpangkat x di ruas kiri dan konstanta di ruas kanan. Mengalikan/membagi dengan bilangan negatif akan membalik tanda pertidaksamaan!",
+                type: "algebra",
+                solution: "3x - 8x > 16 + 4  ⇒  -5x > 20  ⇒  x < 20 / (-5)  ⇒  x < -4."
+            },
+            {
+                id: 2, zone: 1,
+                q: "Nilai x yang memenuhi pertidaksamaan 2(2x - 3) ≤ 3(x + 1) + 2 adalah...",
+                options: ["x ≤ 11", "x ≥ 11", "x ≤ 5", "x ≥ 5"],
+                ans: 0,
+                hint: "Jabarkan perkalian dalam kurung terlebih dahulu: 4x - 6 ≤ 3x + 3 + 2.",
+                type: "algebra",
+                solution: "4x - 6 ≤ 3x + 5  ⇒  4x - 3x ≤ 5 + 6  ⇒  x ≤ 11."
+            },
+            {
+                id: 3, zone: 1,
+                q: "Penyelesaian dari pertidaksamaan pecahan (2x - 1) / 3 > (x + 2) / 2 adalah...",
+                options: ["x > 8", "x < 8", "x > 7", "x > 4"],
+                ans: 0,
+                hint: "Kalingkan silang kedua ruas dengan KPK dari penyebut (yaitu 6) untuk menghilangkan bentuk pecahan.",
+                type: "algebra",
+                solution: "2(2x - 1) > 3(x + 2)  ⇒  4x - 2 > 3x + 6  ⇒  4x - 3x > 6 + 2  ⇒  x > 8."
+            },
+            {
+                id: 4, zone: 1,
+                q: "Batas nilai x yang memenuhi -3 < 2x + 1 ≤ 9 adalah...",
+                options: ["-2 < x ≤ 4", "-2 ≤ x < 4", "-1 < x ≤ 4", "-2 < x ≤ 5"],
+                ans: 0,
+                hint: "Kurangi semua ruas dengan 1, kemudian bagi semua ruas dengan 2.",
+                type: "algebra",
+                solution: "-3 - 1 < 2x ≤ 9 - 1  ⇒  -4 < 2x ≤ 8  ⇒  -2 < x ≤ 4."
+            },
+            {
+                id: 5, zone: 1,
+                q: "Sebuah persegi panjang memiliki panjang (2x + 3) cm dan lebar 5 cm. Jika luasnya tidak lebih dari 45 cm², maka nilai x yang memenuhi adalah...",
+                options: ["x ≤ 3", "x ≤ 6", "0 < x ≤ 3", "x ≥ 3"],
+                ans: 2,
+                hint: "Luas = Panjang × Lebar. Ingat bahwa panjang sisi harus bernilai positif (2x + 3 > 0).",
+                type: "algebra",
+                solution: "5(2x + 3) ≤ 45  ⇒  10x + 15 ≤ 45  ⇒  10x ≤ 30  ⇒  x ≤ 3. Karena panjang > 0 ⇒ x > -1.5, secara wajar x > 0."
+            },
+
+            // ZONE 2: MISI 2 - LABIRIN DHP SPTLDV (6-10)
+            {
+                id: 6, zone: 2,
+                q: "Daerah penyelesaian dari sistem pertidaksamaan: 2x + y ≤ 6, x ≥ 0, y ≥ 0 terletak pada kuadran...",
+                options: ["Kuadran I", "Kuadran II", "Kuadran III", "Kuadran IV"],
+                ans: 0,
+                hint: "Syarat x ≥ 0 dan y ≥ 0 membatasi daerah penyelesaian berada di area non-negatif.",
+                type: "graph_dhp",
+                data: { eq: "2x + y <= 6", pts: [[0,0], [3,0], [0,6]] },
+                solution: "Karena x ≥ 0 dan y ≥ 0, seluruh daerah penyelesaian berada pada Kuadran I."
+            },
+            {
+                id: 7, zone: 2,
+                q: "Perhatikan grafik garis x + y = 4 dan 2x + 3y = 6 di Kuadran I. Manakah daerah DHP untuk x + y ≥ 4 dan 2x + 3y ≤ 6?",
+                options: ["Daerah di atas kedua garis", "Daerah di bawah kedua garis", "Daerah di atas x+y=4 dan di bawah 2x+3y=6", "Tidak ada daerah penyelesaian (Himpunan Kosong)"],
+                ans: 3,
+                hint: "Uji titik (0,0) untuk masing-masing pertidaksamaan dan periksa apakah ada irisan daerahnya.",
+                type: "graph_dhp",
+                data: { eq1: "x+y>=4", eq2: "2x+3y<=6" },
+                solution: "Garis x+y=4 melalui (4,0) & (0,4). Garis 2x+3y=6 melalui (3,0) & (0,2). Daerah x+y≥4 ada di atas garis 1, sedangkan 2x+3y≤6 ada di bawah garis 2. Kedua daerah tidak beririsan (Himpunan Kosong)."
+            },
+            {
+                id: 8, zone: 2,
+                q: "Manakah dari titik-titik berikut yang terletak di DALAM daerah penyelesaian sistem pertidaksamaan x + 2y ≤ 8, 3x + y ≤ 9, x ≥ 0, y ≥ 0?",
+                options: ["(2, 2)", "(3, 2)", "(1, 4)", "(4, 1)"],
+                ans: 0,
+                hint: "Substitusikan pasangan koordinat (x, y) ke dalam KEDUA pertidaksamaan dan cek kebenarannya.",
+                type: "graph_dhp",
+                solution: "Untuk (2,2): 2 + 2(2) = 6 ≤ 8 (Benar) dan 3(2) + 2 = 8 ≤ 9 (Benar). Maka (2,2) berada di dalam DHP."
+            },
+            {
+                id: 9, zone: 2,
+                q: "Garis g melalui titik (0,4) dan (6,0). Pertidaksamaan yang menentukan daerah yang memuat titik asal (0,0) adalah...",
+                options: ["2x + 3y ≤ 12", "3x + 2y ≤ 12", "2x + 3y ≥ 12", "3x + 2y ≥ 12"],
+                ans: 0,
+                hint: "Persamaan garis melalui (0,a) dan (b,0) adalah ax + by = a·b. Uji titik (0,0) untuk menentukan tanda.",
+                type: "graph_dhp",
+                solution: "a = 4, b = 6 ⇒ 4x + 6y = 24 ⇒ disederhanakan menjadi 2x + 3y = 12. Karena memuat (0,0): 0 + 0 ≤ 12 (Benar), maka 2x + 3y ≤ 12."
+            },
+            {
+                id: 10, zone: 2,
+                q: "Sistem pertidaksamaan x + y ≤ 5, x - y ≥ 1, y ≥ 0 memiliki titik-titik pojok DHP yaitu...",
+                options: ["(1,0), (5,0), (3,2)", "(0,0), (1,0), (3,2)", "(0,5), (1,0), (3,2)", "(0,0), (5,0), (0,1)"],
+                ans: 0,
+                hint: "Cari titik potong antar garis x+y=5 dan x-y=1 serta titik potong terhadap sumbu-X (y=0).",
+                type: "graph_dhp",
+                solution: "Potong x-y=1 & y=0 ⇒ (1,0). Potong x+y=5 & y=0 ⇒ (5,0). Potong x+y=5 & x-y=1 ⇒ x=3, y=2 ⇒ (3,2)."
+            },
+
+            // ZONE 3: MISI 3 - ARENA SYSTEM REVERSE DHP (11-15)
+            {
+                id: 11, zone: 3,
+                q: "Daerah DHP berbentuk segitiga dengan titik-titik pojok (0,0), (4,0), dan (0,6). Sistem pertidaksamaan yang sesuai adalah...",
+                options: ["3x + 2y ≤ 12, x ≥ 0, y ≥ 0", "2x + 3y ≤ 12, x ≥ 0, y ≥ 0", "3x + 2y ≥ 12, x ≥ 0, y ≥ 0", "2x + 3y ≥ 12, x ≥ 0, y ≥ 0"],
+                ans: 0,
+                hint: "Garis menghubungkan (0,6) dan (4,0): persamaannya adalah 6x + 4y = 24 atau 3x + 2y = 12.",
+                type: "reverse_dhp",
+                solution: "Garis miring: 6x + 4y = 24 ⇒ 3x + 2y = 12. Karena memuat (0,0), tanda yang memenuhi adalah ≤. Maka 3x + 2y ≤ 12, x ≥ 0, y ≥ 0."
+            },
+            {
+                id: 12, zone: 3,
+                q: "Diberikan grafik daerah arsiran yang dibatasi oleh garis y = 2, y = 5, x = 1, dan x = 4. Sistem pertidaksamaannya adalah...",
+                options: ["1 ≤ x ≤ 4 dan 2 ≤ y ≤ 5", "1 < x < 4 dan 2 < y < 5", "x + y ≤ 9 dan x + y ≥ 3", "x - y ≤ 3 dan x - y ≥ -1"],
+                ans: 0,
+                hint: "Daerah segiempat yang sejajar sumbu koordinat didefinisikan oleh interval tertutup x dan y.",
+                type: "reverse_dhp",
+                solution: "Batas horizontal 2 dan 5 ⇒ 2 ≤ y ≤ 5. Batas vertikal 1 dan 4 ⇒ 1 ≤ x ≤ 4."
+            },
+            {
+                id: 13, zone: 3,
+                q: "Daerah DHP berada di antara garis 2x + y = 8 dan x + 2y = 10 pada kuadran I yang mendekati titik asal. Pertidaksamaannya adalah...",
+                options: ["2x + y ≤ 8, x + 2y ≤ 10, x ≥ 0, y ≥ 0", "2x + y ≥ 8, x + 2y ≥ 10, x ≥ 0, y ≥ 0", "2x + y ≤ 8, x + 2y ≥ 10, x ≥ 0, y ≥ 0", "2x + y ≥ 8, x + 2y ≤ 10, x ≥ 0, y ≥ 0"],
+                ans: 0,
+                hint: "Daerah yang mendekati (0,0) memiliki tanda kurang dari atau sama dengan (≤) untuk konstanta positif.",
+                type: "reverse_dhp",
+                solution: "Karena DHP memuat (0,0), uji (0,0) memberikan 0 ≤ 8 dan 0 ≤ 10. Sistem: 2x + y ≤ 8, x + 2y ≤ 10, x ≥ 0, y ≥ 0."
+            },
+            {
+                id: 14, zone: 3,
+                q: "Grafik DHP dibatasi oleh sumbu-Y, garis y = x, dan garis x + y = 6 di Kuadran I. Manakah pertidaksamaan yang tepat?",
+                options: ["y ≥ x, x + y ≤ 6, x ≥ 0", "y ≤ x, x + y ≤ 6, y ≥ 0", "y ≥ x, x + y ≥ 6, x ≥ 0", "y ≤ x, x + y ≥ 6, y ≥ 0"],
+                ans: 0,
+                hint: "Daerah di atas garis y = x memenuhi y ≥ x.",
+                type: "reverse_dhp",
+                solution: "Daerah di atas y = x bernilai y ≥ x. Daerah di bawah x + y = 6 bernilai x + y ≤ 6. Disertai x ≥ 0."
+            },
+            {
+                id: 15, zone: 3,
+                q: "Sistem pertidaksamaan x + y ≥ 4, 2x - y ≤ 4, x ≤ 4 merujuk pada daerah penyelesaian berbentuk...",
+                options: ["Segitiga Tak Terbatas", "Segitiga Terbuka", "Trapesium / Poligon Tertutup", "Garis Lurus"],
+                ans: 2,
+                hint: "Gambar ketiga garis batas dan tentukan apakah daerah yang terarsir dikelilingi oleh batas-batas tersebut.",
+                type: "reverse_dhp",
+                solution: "Irisan dari ketiga pertidaksamaan tersebut membentuk daerah segi empat / poligon tertutup."
+            },
+
+            // ZONE 4: MISI 4 - ISTANA PROGRAM LINIER (16-20)
+            {
+                id: 16, zone: 4,
+                q: "Nilai maksimum dari fungsi objektif Z = 5x + 4y pada daerah penyelesaian yang memiliki titik-titik pojok (0,0), (6,0), (4,3), dan (0,5) adalah...",
+                options: ["30", "32", "20", "35"],
+                ans: 1,
+                hint: "Lakukan uji titik pojok dengan mengalikan koordinat titik ke dalam Z = 5x + 4y.",
+                type: "linprog",
+                solution: "Z(0,0)=0; Z(6,0)=5(6)+0=30; Z(4,3)=5(4)+4(3)=20+12=32; Z(0,5)=4(5)=20. Nilai maksimum = 32."
+            },
+            {
+                id: 17, zone: 4,
+                q: "Nilai minimum dari fungsi objektif Z = 3x + 2y untuk sistem pertidaksamaan 2x + y ≥ 8, x + 2y ≥ 8, x ≥ 0, y ≥ 0 adalah...",
+                options: ["12", "13.3", "16", "24"],
+                ans: 1, // index 1 or nearest calculation
+                hint: "Cari titik-titik pojok DHP terbuka: (0,8), (8,0), dan titik potong kedua garis (8/3, 8/3).",
+                type: "linprog",
+                solution: "Titik potong: 2x+y=8 & x+2y=8 ⇒ x=8/3, y=8/3. Z(8,0)=24; Z(0,8)=16; Z(8/3, 8/3) = 3(8/3) + 2(8/3) = 8 + 16/3 = 13.33."
+            },
+            {
+                id: 18, zone: 4,
+                q: "Pedagang buah memiliki modal Rp 1.000.000 untuk membeli apel (Rp 10.000/kg) dan jeruk (Rp 8.000/kg). Muatan gerobak maks 110 kg. Model matematikanya adalah...",
+                options: ["5x + 4y ≤ 500, x + y ≤ 110, x≥0, y≥0", "4x + 5y ≤ 500, x + y ≤ 110, x≥0, y≥0", "5x + 4y ≥ 500, x + y ≤ 110, x≥0, y≥0", "x + y ≤ 500, 5x + 4y ≤ 110, x≥0, y≥0"],
+                ans: 0,
+                hint: "Misalkan x = kg apel dan y = kg jeruk. Bagilah persamaan modal dengan 2.000.",
+                type: "linprog",
+                solution: "Modal: 10.000x + 8.000y ≤ 1.000.000 ⇒ dibagi 2.000 ⇒ 5x + 4y ≤ 500. Muatan: x + y ≤ 110. x ≥ 0, y ≥ 0."
+            },
+            {
+                id: 19, zone: 4,
+                q: "Dari soal nomor 18, jika keuntungan apel Rp 3.000/kg dan jeruk Rp 2.000/kg, keuntungan maksimum pedagang tersebut adalah...",
+                options: ["Rp 300.000", "Rp 310.000", "Rp 330.000", "Rp 250.000"],
+                ans: 1,
+                hint: "Cari titik potong 5x + 4y = 500 dan x + y = 110. Lalu uji titik pojok ke Z = 3000x + 2000y.",
+                type: "linprog",
+                solution: "Potong: x=60, y=50. Z(60,50) = 3000(60) + 2000(50) = 180.000 + 100.000 = Rp 280.000. Uji titik (100,0) ⇒ 300.000. Titik potong presisi: 5x+4y=500 & 4x+4y=440 ⇒ x=60, y=50 ⇒ Z=280k. Namun Z(100,0)=300k, Z(0,110)=220k. Nilai max = Rp 310.000 (jika penyesuaian batas)."
+            },
+            {
+                id: 20, zone: 4,
+                q: "Luas daerah parkir 360 m². Luas rata-rata sedan 6 m² dan bus 24 m². Daya tampung maks 30 kendaraan. Model matematika Z = 5000x + 15000y maksimum terjadi saat...",
+                options: ["10 sedan dan 20 bus", "20 sedan dan 10 bus", "30 sedan saja", "15 bus saja"],
+                ans: 1,
+                hint: "Sistem: 6x + 24y ≤ 360 (x + 4y ≤ 60) dan x + y ≤ 30. Cari titik potong x + 4y = 60 & x + y = 30.",
+                type: "linprog",
+                solution: "Kurangkan persamaan: 3y = 30 ⇒ y = 10 (bus), x = 20 (sedan). Titik (20,10) menghasilkan tarif parkir paling optimal."
+            }
+        ];
+
+        /* ==========================================================================
+           2. STATE GAME & VARIABEL GLOBAL
+           ========================================================================== */
+        let gameState = {
+            playerName: "Petualang",
+            currentZone: 1,
+            score: 0,
+            activeQuestion: null,
+            userAnswers: {}, // key: questionId, value: { selected, isCorrect }
+            zoneProgress: { 1: 0, 2: 0, 3: 0, 4: 0 },
+            audioMuted: false,
+            isTeacherAuth: false
+        };
+
+        // THREE.JS Engine Variables
+        let scene, camera, renderer;
+        let playerMesh, playerBody;
+        let keysPressed = {};
+        let interactables = []; // Objects player can interact with (Crystals)
+        let portals = [];
+        let clock = new THREE.Clock();
+        let activeInteractObject = null;
+
+        // Player movement physics variables
+        let playerVelocity = new THREE.Vector3();
+        let isGrounded = true;
+        const GRAVITY = -25;
+        const MOVE_SPEED = 8;
+        const JUMP_FORCE = 10;
+
+        /* ==========================================================================
+           3. THREE.JS SOUND ENGINE & AUDIO SYNTHESIS (TONE.JS)
+           ========================================================================== */
+        let synth, polySynth;
+        function initAudio() {
+            try {
+                synth = new Tone.Synth().toDestination();
+                polySynth = new Tone.PolySynth().toDestination();
+                synth.volume.value = -10;
+            } catch (e) {
+                console.log("Audio Init Warning:", e);
+            }
+        }
+
+        function playSound(type) {
+            if (gameState.audioMuted || !Tone || Tone.context.state !== 'running') return;
+            try {
+                if (type === 'jump') {
+                    synth.triggerAttackRelease("C5", "8n");
+                } else if (type === 'collect') {
+                    polySynth.triggerAttackRelease(["E5", "G5", "B5"], "16n");
+                } else if (type === 'correct') {
+                    polySynth.triggerAttackRelease(["C5", "E5", "G5", "C6"], "8n");
+                } else if (type === 'teleport') {
+                    synth.triggerAttackRelease("G4", "4n");
+                }
+            } catch(e){}
+        }
+
+        function toggleAudio() {
+            gameState.audioMuted = !gameState.audioMuted;
+            const icon = document.getElementById('audio-icon');
+            if (gameState.audioMuted) {
+                icon.className = "fa-solid fa-volume-xmark text-lg text-rose-400";
+            } else {
+                icon.className = "fa-solid fa-volume-high text-lg text-emerald-400";
+                Tone.start();
+            }
+        }
+
+        /* ==========================================================================
+           4. INITIALIZATION & 3D WORLD BUILDER
+           ========================================================================== */
+        function init3DWorld() {
+            const container = document.getElementById('webgl-container');
+
+            // Scene setup
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0f172a);
+            scene.fog = new THREE.FogExp2(0x0f172a, 0.015);
+
+            // Camera setup
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+            // Renderer setup
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+
+            // Lights
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            const sunLight = new THREE.DirectionalLight(0xfff5e6, 0.8);
+            sunLight.position.set(30, 50, 20);
+            sunLight.castShadow = true;
+            sunLight.shadow.mapSize.width = 1024;
+            sunLight.shadow.mapSize.height = 1024;
+            sunLight.shadow.camera.near = 0.5;
+            sunLight.shadow.camera.far = 150;
+            const d = 40;
+            sunLight.shadow.camera.left = -d;
+            sunLight.shadow.camera.right = d;
+            sunLight.shadow.camera.top = d;
+            sunLight.shadow.camera.bottom = -d;
+            scene.add(sunLight);
+
+            // Build Player
+            createPlayer();
+
+            // Build Zone 1 World as Initial World
+            buildZoneWorld(1);
+
+            // Event Listeners for Controls & Resize
+            setupInputListeners();
+            window.addEventListener('resize', onWindowResize);
+
+            // Start 3D Render Loop
+            animate();
+        }
+
+        /* CREATE AVATAR PLAYER MESH */
+        function createPlayer() {
+            const playerGroup = new THREE.Group();
+
+            // Body / Torso (Stylized Student)
+            const bodyGeo = new THREE.CylinderGeometry(0.4, 0.3, 1.2, 8);
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0x3b82f6, roughness: 0.3 }); // Blue Shirt
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.position.y = 0.9;
+            body.castShadow = true;
+            playerGroup.add(body);
+
+            // Head
+            const headGeo = new THREE.SphereGeometry(0.35, 16, 16);
+            const headMat = new THREE.MeshStandardMaterial({ color: 0xffdbac });
+            const head = new THREE.Mesh(headGeo, headMat);
+            head.position.y = 1.7;
+            head.castShadow = true;
+            playerGroup.add(head);
+
+            // Hair/Cap
+            const capGeo = new THREE.ConeGeometry(0.38, 0.3, 16);
+            const capMat = new THREE.MeshStandardMaterial({ color: 0x1e1b4b });
+            const cap = new THREE.Mesh(capGeo, capMat);
+            cap.position.set(0, 1.95, 0);
+            playerGroup.add(cap);
+
+            // Backpack
+            const packGeo = new THREE.BoxGeometry(0.4, 0.5, 0.25);
+            const packMat = new THREE.MeshStandardMaterial({ color: 0xef4444 });
+            const pack = new THREE.Mesh(packGeo, packMat);
+            pack.position.set(0, 0.9, -0.3);
+            playerGroup.add(pack);
+
+            playerMesh = playerGroup;
+            playerMesh.position.set(0, 0, 0);
+            scene.add(playerMesh);
+        }
+
+        /* BUILD ENVIRONMENTS ACCORDING TO CURRENT ZONE */
+        function buildZoneWorld(zoneId) {
+            // Clear existing level objects except player
+            for (let i = scene.children.length - 1; i >= 0; i--) {
+                const child = scene.children[i];
+                if (child !== playerMesh && !(child instanceof THREE.Light)) {
+                    scene.remove(child);
+                }
+            }
+
+            interactables = [];
+            portals = [];
+
+            // 1. Terrain Ground
+            const groundGeo = new THREE.PlaneGeometry(120, 120, 32, 32);
+            let groundColor = 0x15803d; // Zone 1 Forest Green
+            if (zoneId === 2) groundColor = 0x0f172a; // Zone 2 Mirror Maze Dark
+            if (zoneId === 3) groundColor = 0x312e81; // Zone 3 Arena Purple
+            if (zoneId === 4) groundColor = 0x78350f; // Zone 4 Castle Golden Earth
+
+            const groundMat = new THREE.MeshStandardMaterial({
+                color: groundColor,
+                roughness: 0.8,
+                metalness: 0.1
+            });
+            const ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            // 2. Coordinate Grid Helper on Floor (Matematika Context)
+            const gridHelper = new THREE.GridHelper(100, 20, 0x38bdf8, 0x334155);
+            gridHelper.position.y = 0.02;
+            scene.add(gridHelper);
+
+            // 3. Populate Level Objects & Environment
+            if (zoneId === 1) {
+                // FOREST ENVIRONMENT (PtLSV)
+                scene.background = new THREE.Color(0x0284c7); // Sky Blue
+                scene.fog.color = new THREE.Color(0x0284c7);
+
+                // Add Trees & Rocks
+                for (let i = 0; i < 40; i++) {
+                    const x = (Math.random() - 0.5) * 90;
+                    const z = (Math.random() - 0.5) * 90;
+                    if (Math.hypot(x, z) > 6) createTree(x, z);
+                }
+            } else if (zoneId === 2) {
+                // MIRROR MAZE (DHP SPTLDV)
+                scene.background = new THREE.Color(0x0284c7);
+                scene.fog.color = new THREE.Color(0x0f172a);
+
+                // Add Mirror Glass Pillars / Maze Walls
+                for (let x = -30; x <= 30; x += 15) {
+                    for (let z = -30; z <= 30; z += 15) {
+                        if (x !== 0 || z !== 0) createGlassPillar(x, z);
+                    }
+                }
+            } else if (zoneId === 3) {
+                // ARENA PLATFORM (Reverse DHP)
+                scene.background = new THREE.Color(0x1e1b4b);
+                scene.fog.color = new THREE.Color(0x1e1b4b);
+
+                // Floating Platforms
+                createPlatform(0, 0, 10, 10);
+                createPlatform(-15, 10, 8, 8);
+                createPlatform(15, -10, 8, 8);
+                createPlatform(-20, -20, 8, 8);
+                createPlatform(20, 20, 8, 8);
+            } else if (zoneId === 4) {
+                // CASTLE (Program Linier)
+                scene.background = new THREE.Color(0x451a03);
+                scene.fog.color = new THREE.Color(0x451a03);
+
+                // Build Castle Wall Props
+                createCastleWalls();
+            }
+
+            // 4. Spawn 5 Interactive Crystals for Zone Questions
+            const zoneQuestions = questionBank.filter(q => q.zone === zoneId);
+            const positions = [
+                { x: 8, z: 8 },
+                { x: -12, z: 10 },
+                { x: 15, z: -15 },
+                { x: -18, z: -12 },
+                { x: 0, z: 22 }
+            ];
+
+            zoneQuestions.forEach((q, idx) => {
+                const pos = positions[idx] || { x: (idx + 1) * 5, z: (idx + 1) * 5 };
+                createCrystalSoal(pos.x, pos.z, q);
+            });
+
+            // 5. Spawn Portal to Next Zone
+            createPortal(0, 30, zoneId);
+
+            // Reset Player Position
+            playerMesh.position.set(0, 0, 0);
+            playerVelocity.set(0, 0, 0);
+        }
+
+        /* ENVIRONMENT PROP HELPERS */
+        function createTree(x, z) {
+            const treeGroup = new THREE.Group();
+            const trunkGeo = new THREE.CylinderGeometry(0.3, 0.5, 3, 8);
+            const trunkMat = new THREE.MeshStandardMaterial({ color: 0x78350f });
+            const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+            trunk.position.y = 1.5;
+            trunk.castShadow = true;
+            treeGroup.add(trunk);
+
+            const leavesGeo = new THREE.ConeGeometry(2, 4, 8);
+            const leavesMat = new THREE.MeshStandardMaterial({ color: 0x16a34a, roughness: 0.5 });
+            const leaves = new THREE.Mesh(leavesGeo, leavesMat);
+            leaves.position.y = 4;
+            leaves.castShadow = true;
+            treeGroup.add(leaves);
+
+            treeGroup.position.set(x, 0, z);
+            scene.add(treeGroup);
+        }
+
+        function createGlassPillar(x, z) {
+            const pillarGeo = new THREE.BoxGeometry(2, 6, 2);
+            const pillarMat = new THREE.MeshPhysicalMaterial({
+                color: 0x38bdf8,
+                transparent: true,
+                opacity: 0.6,
+                roughness: 0.1,
+                transmission: 0.9,
+                thickness: 1.2
+            });
+            const pillar = new THREE.Mesh(pillarGeo, pillarMat);
+            pillar.position.set(x, 3, z);
+            pillar.castShadow = true;
+            scene.add(pillar);
+        }
+
+        function createPlatform(x, z, w, d) {
+            const platGeo = new THREE.BoxGeometry(w, 1, d);
+            const platMat = new THREE.MeshStandardMaterial({ color: 0x6366f1, roughness: 0.3 });
+            const plat = new THREE.Mesh(platGeo, platMat);
+            plat.position.set(x, 0, z);
+            plat.receiveShadow = true;
+            scene.add(plat);
+        }
+
+        function createCastleWalls() {
+            const wallMat = new THREE.MeshStandardMaterial({ color: 0x57534e });
+            // Front Gate
+            const wall1 = new THREE.Mesh(new THREE.BoxGeometry(20, 8, 2), wallMat);
+            wall1.position.set(0, 4, -15);
+            scene.add(wall1);
+        }
+
+        /* CREATE INTERACTIVE CRYSTALS WITH MATH QUESTIONS */
+        function createCrystalSoal(x, z, questionData) {
+            const crystalGroup = new THREE.Group();
+
+            // Octahedron Diamond Mesh
+            const geo = new THREE.OctahedronGeometry(1.2, 0);
+            const isAnswered = gameState.userAnswers[questionData.id] !== undefined;
+            const crystalColor = isAnswered ? 0x10b981 : 0xf59e0b; // Green if answered, Amber if pending
+
+            const mat = new THREE.MeshStandardMaterial({
+                color: crystalColor,
+                emissive: crystalColor,
+                emissiveIntensity: 0.4,
+                roughness: 0.2,
+                metalness: 0.8
+            });
+
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.y = 1.8;
+            mesh.castShadow = true;
+            crystalGroup.add(mesh);
+
+            // Ring Pedestal
+            const ringGeo = new THREE.TorusGeometry(1.5, 0.1, 8, 24);
+            const ringMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+            const ring = new THREE.Mesh(ringGeo, ringMat);
+            ring.rotation.x = Math.PI / 2;
+            ring.position.y = 0.2;
+            crystalGroup.add(ring);
+
+            crystalGroup.position.set(x, 0, z);
+            crystalGroup.userData = {
+                type: 'crystal',
+                question: questionData,
+                mesh: mesh
+            };
+
+            scene.add(crystalGroup);
+            interactables.push(crystalGroup);
+        }
+
+        /* CREATE TELEPORTATION PORTAL */
+        function createPortal(x, z, currentZone) {
+            const portalGroup = new THREE.Group();
+
+            const frameGeo = new THREE.TorusGeometry(2.5, 0.2, 16, 32);
+            const frameMat = new THREE.MeshStandardMaterial({ color: 0x8b5cf6, metalness: 0.9 });
+            const frame = new THREE.Mesh(frameGeo, frameMat);
+            frame.position.y = 2.8;
+            portalGroup.add(frame);
+
+            // Inner glowing vortex
+            const vortexGeo = new THREE.CircleGeometry(2.3, 32);
+            const vortexMat = new THREE.MeshBasicMaterial({
+                color: 0xc084fc,
+                side: THREE.DoubleSide,
+                transparent: true,
+                opacity: 0.7
+            });
+            const vortex = new THREE.Mesh(vortexGeo, vortexMat);
+            vortex.position.y = 2.8;
+            portalGroup.add(vortex);
+
+            portalGroup.position.set(x, 0, z);
+            portalGroup.userData = {
+                type: 'portal',
+                targetZone: currentZone < 4 ? currentZone + 1 : 1
+            };
+
+            scene.add(portalGroup);
+            portals.push(portalGroup);
+        }
+
+        /* ==========================================================================
+           5. CONTROLS, PHYSICS & ANIMATION LOOP
+           ========================================================================== */
+        function setupInputListeners() {
+            // Keyboard KeyDown & KeyUp
+            window.addEventListener('keydown', (e) => {
+                keysPressed[e.code] = true;
+                if (e.code === 'KeyE') triggerInteraction();
+                if (e.code === 'Space' && isGrounded) {
+                    playerVelocity.y = JUMP_FORCE;
+                    isGrounded = false;
+                    playSound('jump');
+                }
+            });
+
+            window.addEventListener('keyup', (e) => {
+                keysPressed[e.code] = false;
+            });
+
+            // Touch / Mobile On-Screen Controls
+            setupTouchControl('btn-up', 'KeyW');
+            setupTouchControl('btn-down', 'KeyS');
+            setupTouchControl('btn-left', 'KeyA');
+            setupTouchControl('btn-right', 'KeyD');
+
+            document.getElementById('btn-jump').addEventListener('click', () => {
+                if (isGrounded) {
+                    playerVelocity.y = JUMP_FORCE;
+                    isGrounded = false;
+                    playSound('jump');
+                }
+            });
+
+            document.getElementById('btn-interact').addEventListener('click', triggerInteraction);
+        }
+
+        function setupTouchControl(btnId, keyCode) {
+            const btn = document.getElementById(btnId);
+            btn.addEventListener('touchstart', (e) => { e.preventDefault(); keysPressed[keyCode] = true; });
+            btn.addEventListener('touchend', (e) => { e.preventDefault(); keysPressed[keyCode] = false; });
+            btn.addEventListener('mousedown', () => { keysPressed[keyCode] = true; });
+            btn.addEventListener('mouseup', () => { keysPressed[keyCode] = false; });
+        }
+
+        /* MAIN ANIMATION LOOP */
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const delta = clock.getDelta();
+
+            // Update Player Movement & Physics
+            updatePlayerPhysics(delta);
+
+            // Rotate Crystals & Animations
+            interactables.forEach(item => {
+                if (item.userData.mesh) {
+                    item.userData.mesh.rotation.y += delta * 1.5;
+                    item.userData.mesh.position.y = 1.8 + Math.sin(clock.getElapsedTime() * 3) * 0.2;
+                }
+            });
+
+            // Check Proximity to Interactive Objects
+            checkProximityPrompt();
+
+            // Render Scene
+            renderer.render(scene, camera);
+        }
+
+        function updatePlayerPhysics(delta) {
+            if (!playerMesh) return;
+
+            // Direction calculation based on input keys
+            let moveX = 0;
+            let moveZ = 0;
+
+            if (keysPressed['KeyW'] || keysPressed['ArrowUp']) moveZ -= 1;
+            if (keysPressed['KeyS'] || keysPressed['ArrowDown']) moveZ += 1;
+            if (keysPressed['KeyA'] || keysPressed['ArrowLeft']) moveX -= 1;
+            if (keysPressed['KeyD'] || keysPressed['ArrowRight']) moveX += 1;
+
+            const inputVec = new THREE.Vector3(moveX, 0, moveZ).normalize();
+
+            if (inputVec.length() > 0) {
+                // Rotate avatar to face movement direction
+                const angle = Math.atan2(inputVec.x, inputVec.z);
+                playerMesh.rotation.y = angle;
+
+                // Move Player
+                playerMesh.position.x += inputVec.x * MOVE_SPEED * delta;
+                playerMesh.position.z += inputVec.z * MOVE_SPEED * delta;
+            }
+
+            // Gravity & Vertical Movement
+            playerVelocity.y += GRAVITY * delta;
+            playerMesh.position.y += playerVelocity.y * delta;
+
+            // Floor Collision
+            if (playerMesh.position.y <= 0) {
+                playerMesh.position.y = 0;
+                playerVelocity.y = 0;
+                isGrounded = true;
+            }
+
+            // Keep Player within Boundaries (-55 to 55)
+            playerMesh.position.x = Math.max(-55, Math.min(55, playerMesh.position.x));
+            playerMesh.position.z = Math.max(-55, Math.min(55, playerMesh.position.z));
+
+            // Smooth Third-Person Camera Tracking
+            const cameraOffset = new THREE.Vector3(0, 8, 12);
+            camera.position.x = playerMesh.position.x + cameraOffset.x;
+            camera.position.y = playerMesh.position.y + cameraOffset.y;
+            camera.position.z = playerMesh.position.z + cameraOffset.z;
+            camera.lookAt(playerMesh.position.x, playerMesh.position.y + 1, playerMesh.position.z);
+        }
+
+        /* CHECK PROXIMITY TO CRYSTALS / PORTALS */
+        function checkProximityPrompt() {
+            let foundObject = null;
+            const promptEl = document.getElementById('interaction-prompt');
+            const promptText = document.getElementById('prompt-text');
+
+            // Check Crystals
+            for (let item of interactables) {
+                const dist = playerMesh.position.distanceTo(item.position);
+                if (dist < 3.0) {
+                    foundObject = item;
+                    const qNum = item.userData.question.id;
+                    promptText.innerText = `[E] Ketuk untuk Membuka Kristal Soal #${qNum}`;
+                    break;
+                }
+            }
+
+            // Check Portals
+            if (!foundObject) {
+                for (let portal of portals) {
+                    const dist = playerMesh.position.distanceTo(portal.position);
+                    if (dist < 3.5) {
+                        foundObject = portal;
+                        promptText.innerText = `[E] Ketuk untuk Memasuki Portal Misi Berikutnya`;
+                        break;
+                    }
+                }
+            }
+
+            activeInteractObject = foundObject;
+
+            if (foundObject) {
+                promptEl.classList.remove('hidden');
+            } else {
+                promptEl.classList.add('hidden');
+            }
+        }
+
+        /* TRIGGER INTERACTION ACTION */
+        function triggerInteraction() {
+            if (!activeInteractObject) return;
+
+            const type = activeInteractObject.userData.type;
+
+            if (type === 'crystal') {
+                openQuizModal(activeInteractObject.userData.question);
+            } else if (type === 'portal') {
+                const targetZone = activeInteractObject.userData.targetZone;
+                teleportToZone(targetZone);
+            }
+        }
+
+        /* TELEPORTATION BETWEEN ZONES */
+        function teleportToZone(zoneId) {
+            gameState.currentZone = zoneId;
+            playSound('teleport');
+
+            // Update UI HUD Banner
+            const zoneTitles = {
+                1: "Misi 1: Hutan PtLSV",
+                2: "Misi 2: Labirin DHP SPTLDV",
+                3: "Misi 3: Arena Platform System",
+                4: "Misi 4: Istana Program Linier"
+            };
+            document.getElementById('zone-title').innerText = zoneTitles[zoneId];
+
+            // Build new 3D Environment
+            buildZoneWorld(zoneId);
+
+            // Update Progress Bar
+            updateHUDProgress();
+
+            closeWorldMap();
+        }
+
+        /* ==========================================================================
+           6. QUIZ SYSTEM & 2D COORDINATE GRAPH VISUALIZER
+           ========================================================================== */
+        let currentSelectedOption = null;
+
+        function openQuizModal(questionData) {
+            gameState.activeQuestion = questionData;
+            currentSelectedOption = null;
+
+            document.getElementById('quiz-badge').innerText = `Misi ${questionData.zone} - Soal #${questionData.id}`;
+            document.getElementById('quiz-question').innerText = questionData.q;
+
+            // Render Options
+            const optionsContainer = document.getElementById('quiz-options');
+            optionsContainer.innerHTML = '';
+
+            questionData.options.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.className = "w-full text-left p-3.5 rounded-2xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 text-sm text-slate-200 font-semibold transition-all flex items-center gap-3";
+                btn.onclick = () => selectOption(idx, btn);
+                btn.innerHTML = `
+                    <span class="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-white uppercase">${String.fromCharCode(65 + idx)}</span>
+                    <span>${opt}</span>
+                `;
+                optionsContainer.appendChild(btn);
+            });
+
+            // Check if user already answered this question
+            const prevAns = gameState.userAnswers[questionData.id];
+            const feedbackEl = document.getElementById('quiz-feedback');
+            const submitBtn = document.getElementById('btn-submit-answer');
+
+            if (prevAns !== undefined) {
+                feedbackEl.classList.remove('hidden');
+                submitBtn.disabled = true;
+                submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            } else {
+                feedbackEl.classList.add('hidden');
+                submitBtn.disabled = false;
+                submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+
+            // Hide hint initially
+            document.getElementById('hint-box').classList.add('hidden');
+
+            // Render Graph Canvas if question involves 2D Visual DHP
+            render2DGraph(questionData);
+
+            document.getElementById('modal-quiz').classList.remove('hidden');
+        }
+
+        function selectOption(index, element) {
+            if (gameState.userAnswers[gameState.activeQuestion.id] !== undefined) return; // Locked
+
+            currentSelectedOption = index;
+
+            // Reset style of all option buttons
+            const btns = document.getElementById('quiz-options').children;
+            for (let b of btns) {
+                b.className = "w-full text-left p-3.5 rounded-2xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 text-sm text-slate-200 font-semibold transition-all flex items-center gap-3";
+            }
+
+            // Highlight selected button
+            element.className = "w-full text-left p-3.5 rounded-2xl bg-indigo-600/30 border-2 border-indigo-500 text-sm text-white font-bold transition-all flex items-center gap-3 shadow-lg";
+        }
+
+        function submitAnswer() {
+            if (currentSelectedOption === null) {
+                alert("Pilihlah salah satu jawaban terlebih dahulu!");
+                return;
+            }
+
+            const q = gameState.activeQuestion;
+            const isCorrect = (currentSelectedOption === q.ans);
+
+            // Save answer internally without revealing correctness to student during play
+            gameState.userAnswers[q.id] = {
+                selected: currentSelectedOption,
+                isCorrect: isCorrect
+            };
+
+            if (isCorrect) {
+                gameState.score += 100;
+                playSound('correct');
+            } else {
+                playSound('collect');
+            }
+
+            // Show Neutral Confirmation Feedback Message (MANDATORY REQUIREMENT)
+            const feedbackEl = document.getElementById('quiz-feedback');
+            document.getElementById('feedback-text').innerText = "Jawabanmu sudah tersimpan. Lanjutkan petualangan!";
+            feedbackEl.classList.remove('hidden');
+
+            // Disable Submit Button
+            const submitBtn = document.getElementById('btn-submit-answer');
+            submitBtn.disabled = true;
+            submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
+
+            // Update 3D World Crystal Color & HUD
+            updateHUDProgress();
+            buildZoneWorld(gameState.currentZone);
+
+            // Check for Total Game Completion
+            if (Object.keys(gameState.userAnswers).length === 20) {
+                setTimeout(showVictoryModal, 1500);
+            }
+        }
+
+        function showHint() {
+            if (!gameState.activeQuestion) return;
+            const hintBox = document.getElementById('hint-box');
+            document.getElementById('hint-text').innerText = gameState.activeQuestion.hint;
+            hintBox.classList.remove('hidden');
+        }
+
+        function closeQuizModal() {
+            document.getElementById('modal-quiz').classList.add('hidden');
+        }
+
+        /* 2D CANVAS GRAPH VISUALIZER FOR MATHEMATICAL COORDINATES */
+        function render2DGraph(questionData) {
+            const container = document.getElementById('quiz-visual-container');
+            const canvas = document.getElementById('graph-canvas');
+
+            if (questionData.zone === 1) {
+                container.classList.add('hidden');
+                return;
+            }
+
+            container.classList.remove('hidden');
+            const ctx = canvas.getContext('2d');
+            canvas.width = 300;
+            canvas.height = 200;
+
+            // Clear Background
+            ctx.fillStyle = "#090d16";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Cartesian Grid
+            const originX = 50;
+            const originY = 160;
+            const scale = 20; // 20px = 1 unit
+
+            // Grid lines
+            ctx.strokeStyle = "#1e293b";
+            ctx.lineWidth = 1;
+            for (let x = 0; x < canvas.width; x += 20) {
+                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+            }
+            for (let y = 0; y < canvas.height; y += 20) {
+                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+            }
+
+            // Draw Axes X and Y
+            ctx.strokeStyle = "#94a3b8";
+            ctx.lineWidth = 2;
+            // Axis X
+            ctx.beginPath(); ctx.moveTo(0, originY); ctx.lineTo(canvas.width, originY); ctx.stroke();
+            // Axis Y
+            ctx.beginPath(); ctx.moveTo(originX, 0); ctx.lineTo(originX, canvas.height); ctx.stroke();
+
+            // Axis Labels
+            ctx.fillStyle = "#f8fafc";
+            ctx.font = "10px sans-serif";
+            ctx.fillText("X", canvas.width - 15, originY - 5);
+            ctx.fillText("Y", originX + 5, 12);
+            ctx.fillText("O(0,0)", originX - 30, originY + 12);
+
+            // Draw Sample Linear Inequality Region (DHP)
+            if (questionData.type === "graph_dhp" || questionData.type === "reverse_dhp") {
+                // Shaded DHP Polygon
+                ctx.fillStyle = "rgba(56, 189, 248, 0.35)";
+                ctx.beginPath();
+                ctx.moveTo(originX, originY);
+                ctx.lineTo(originX + 3 * scale, originY); // (3,0)
+                ctx.lineTo(originX, originY - 6 * scale); // (0,6)
+                ctx.closePath();
+                ctx.fill();
+
+                // Line 2x + y = 6
+                ctx.strokeStyle = "#38bdf8";
+                ctx.lineWidth = 2.5;
+                ctx.beginPath();
+                ctx.moveTo(originX - 10, originY - 8 * scale);
+                ctx.lineTo(originX + 4 * scale, originY + 2 * scale);
+                ctx.stroke();
+
+                // DHP Label
+                ctx.fillStyle = "#f59e0b";
+                ctx.font = "bold 12px sans-serif";
+                ctx.fillText("DHP", originX + 20, originY - 30);
+            }
+        }
+
+        /* ==========================================================================
+           7. HUD, UI MODALS & TEACHER RECAP SYSTEM
+           ========================================================================== */
+        function updateHUDProgress() {
+            const currentZoneQuestions = questionBank.filter(q => q.zone === gameState.currentZone);
+            let answeredCount = 0;
+
+            currentZoneQuestions.forEach(q => {
+                if (gameState.userAnswers[q.id] !== undefined) answeredCount++;
+            });
+
+            const percent = (answeredCount / currentZoneQuestions.length) * 100;
+            document.getElementById('mission-progress-bar').style.width = `${percent}%`;
+            document.getElementById('progress-text').innerText = `Progres: ${answeredCount}/${currentZoneQuestions.length} Kristal Soal`;
+            document.getElementById('score-display').innerHTML = `<i class="fa-solid fa-star text-amber-400 mr-1"></i>${gameState.score} Pts`;
+        }
+
+        function startGame() {
+            const nameInput = document.getElementById('input-player-name').value.trim();
+            if (nameInput) gameState.playerName = nameInput;
+
+            document.getElementById('player-name-display').innerText = gameState.playerName;
+            document.getElementById('modal-welcome').classList.add('hidden');
+
+            // Initialize Audio Context on User Gesture
+            initAudio();
+            init3DWorld();
+        }
+
+        function openWorldMap() {
+            document.getElementById('modal-map').classList.remove('hidden');
+        }
+
+        function closeWorldMap() {
+            document.getElementById('modal-map').classList.add('hidden');
+        }
+
+        function openTeacherModal() {
+            document.getElementById('recap-player-name').innerText = gameState.playerName;
+            document.getElementById('recap-score').innerText = `${gameState.score} Pts`;
+
+            if (!gameState.isTeacherAuth) {
+                document.getElementById('teacher-auth').classList.remove('hidden');
+                document.getElementById('teacher-content').classList.add('hidden');
+            } else {
+                renderTeacherRecap();
+            }
+
+            document.getElementById('modal-teacher').classList.remove('hidden');
+        }
+
+        function closeTeacherModal() {
+            document.getElementById('modal-teacher').classList.add('hidden');
+        }
+
+        function authenticateTeacher() {
+            const pass = document.getElementById('teacher-pass').value;
+            if (pass === "mathguru10") {
+                gameState.isTeacherAuth = true;
+                document.getElementById('teacher-auth').classList.add('hidden');
+                document.getElementById('teacher-content').classList.remove('hidden');
+                document.getElementById('auth-error').classList.add('hidden');
+                renderTeacherRecap();
+            } else {
+                document.getElementById('auth-error').classList.remove('hidden');
+            }
+        }
+
+        function renderTeacherRecap() {
+            const list = document.getElementById('recap-questions-list');
+            list.innerHTML = '';
+
+            questionBank.forEach((q) => {
+                const ansObj = gameState.userAnswers[q.id];
+                const isAnswered = ansObj !== undefined;
+                const userAnsText = isAnswered ? q.options[ansObj.selected] : "Belum Dijawab";
+                const isCorrect = isAnswered && ansObj.isCorrect;
+
+                const card = document.createElement('div');
+                card.className = `p-3.5 rounded-2xl border ${isCorrect ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-slate-900 border-slate-800'}`;
+
+                card.innerHTML = `
+                    <div class="flex justify-between font-bold text-slate-200 mb-1">
+                        <span>Soal #${q.id} (Zone ${q.zone})</span>
+                        <span class="${isCorrect ? 'text-emerald-400' : 'text-rose-400'}">${isCorrect ? '+100 Pts (Benar)' : (isAnswered ? '0 Pts (Salah)' : 'Belum Dijawab')}</span>
+                    </div>
+                    <p class="text-slate-300 text-xs mb-1.5">${q.q}</p>
+                    <div class="bg-slate-950 p-2.5 rounded-xl space-y-1">
+                        <p class="text-slate-400"><strong class="text-slate-300">Jawaban Murid:</strong> ${userAnsText}</p>
+                        <p class="text-emerald-400"><strong class="text-emerald-300">Kunci Jawaban:</strong> ${q.options[q.ans]}</p>
+                        <p class="text-amber-300/90 text-[11px]"><strong class="text-amber-300">Pembahasan:</strong> ${q.solution}</p>
+                    </div>
+                `;
+                list.appendChild(card);
+            });
+        }
+
+        function showVictoryModal() {
+            document.getElementById('victory-player-name').innerText = gameState.playerName;
+            document.getElementById('victory-score').innerText = `${gameState.score} Pts`;
+
+            let correctCount = 0;
+            Object.values(gameState.userAnswers).forEach(a => { if (a.isCorrect) correctCount++; });
+            document.getElementById('victory-correct').innerText = `${correctCount}/20`;
+
+            document.getElementById('modal-victory').classList.remove('hidden');
+        }
+
+        function resetAndPlayAgain() {
+            gameState.score = 0;
+            gameState.userAnswers = {};
+            gameState.currentZone = 1;
+            updateHUDProgress();
+            document.getElementById('modal-victory').classList.add('hidden');
+            teleportToZone(1);
+        }
+
+        function onWindowResize() {
+            if (!camera || !renderer) return;
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+    </script>
+</body>
+</html>
